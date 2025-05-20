@@ -1,16 +1,34 @@
 #!/bin/bash
 
+# Fungsi untuk prompt port jika gagal
+prompt_port() {
+  read -p "❗ Cannot connect to 0gchaind. Please enter the correct RPC port (default is 26657): " custom_port
+  export OG_RPC_PORT="$custom_port"
+}
+
+# Cek awal koneksi dan port
+OG_RPC_PORT=26657
+status_json=$(curl -s "http://localhost:$OG_RPC_PORT/status")
+
+if ! echo "$status_json" | jq -e . >/dev/null 2>&1; then
+  prompt_port
+  status_json=$(curl -s "http://localhost:$OG_RPC_PORT/status")
+  if ! echo "$status_json" | jq -e . >/dev/null 2>&1; then
+    echo "❌ Still failed to connect. Exiting..."
+    exit 1
+  fi
+fi
+
+# Loop utama
 prev_local_height=0
 prev_time=$(date +%s)
 first_run=true
 
 while true; do
-  status_json=$(0gchaind status)
-  local_height=$(echo "$status_json" | jq -r .sync_info.latest_block_height)
-  catching_up=$(echo "$status_json" | jq -r .sync_info.catching_up)
-
-  # Mendapatkan jumlah peers
-  peers_count=$(echo "$status_json" | jq -r .peers | wc -l)
+  status_json=$(curl -s "http://localhost:$OG_RPC_PORT/status")
+  local_height=$(echo "$status_json" | jq -r .result.sync_info.latest_block_height)
+  catching_up=$(echo "$status_json" | jq -r .result.sync_info.catching_up)
+  peers_count=$(echo "$status_json" | jq -r .result.peers | jq length)
 
   response=$(curl -s -X POST https://evmrpc-testnet.0g.ai \
     -H "Content-Type: application/json" \
