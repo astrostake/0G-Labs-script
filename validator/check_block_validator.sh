@@ -1,34 +1,48 @@
 #!/bin/bash
 
-# Fungsi untuk prompt port jika gagal
-prompt_port() {
-  read -p "❗ Cannot connect to 0gchaind. Please enter the correct RPC port (default is 26657): " custom_port
-  export OG_RPC_PORT="$custom_port"
+# Path JSON
+get_block_height() {
+  curl -s "http://localhost:$1/status" | jq -r '.result.sync_info.latest_block_height // empty'
 }
 
-# Cek awal koneksi dan port
+# Step 1: Try 26657
 OG_RPC_PORT=26657
-status_json=$(curl -s "http://localhost:$OG_RPC_PORT/status")
+local_height=$(get_block_height $OG_RPC_PORT)
 
-if ! echo "$status_json" | jq -e . >/dev/null 2>&1; then
-  prompt_port
-  status_json=$(curl -s "http://localhost:$OG_RPC_PORT/status")
-  if ! echo "$status_json" | jq -e . >/dev/null 2>&1; then
-    echo "❌ Still failed to connect. Exiting..."
+# Step 2: Fallback to ${OG_PORT}657
+if [ -z "$local_height" ] || [ "$local_height" = "null" ]; then
+  echo "⚠️  Port 26657 not responding."
+
+  if [ -n "$OG_PORT" ]; then
+    fallback_port="${OG_PORT}657"
+    echo "⏪ Trying fallback port: $fallback_port"
+    OG_RPC_PORT=$fallback_port
+    local_height=$(get_block_height $OG_RPC_PORT)
+  fi
+fi
+
+# Step 3: If it still fails, ask for manual input
+if [ -z "$local_height" ] || [ "$local_height" = "null" ]; then
+  read -p "❓ Unable to detect port. Please enter the RPC port manually: " manual_port
+  OG_RPC_PORT=$manual_port
+  local_height=$(get_block_height $OG_RPC_PORT)
+
+  if [ -z "$local_height" ] || [ "$local_height" = "null" ]; then
+    echo "❌ Still cannot connect to port $OG_RPC_PORT. Exiting..."
     exit 1
   fi
 fi
 
-# Loop utama
-prev_local_height=0
+# Monitoring loop
+prev_local_height=$local_height
 prev_time=$(date +%s)
 first_run=true
 
 while true; do
   status_json=$(curl -s "http://localhost:$OG_RPC_PORT/status")
-  local_height=$(echo "$status_json" | jq -r .result.sync_info.latest_block_height)
-  catching_up=$(echo "$status_json" | jq -r .result.sync_info.catching_up)
-  peers_count=$(echo "$status_json" | jq -r .result.peers | jq length)
+  local_height=$(echo "$status_json" | jq -r '.result.sync_info.latest_block_height // empty')
+  catching_up=$(echo "$status_json" | jq -r '.result.sync_info.catching_up // empty')
+  peers_count=$(curl -s "http://localhost:$OG_RPC_PORT/net_info" | jq '.result.peers | length')
 
   response=$(curl -s -X POST https://evmrpc-testnet.0g.ai \
     -H "Content-Type: application/json" \
