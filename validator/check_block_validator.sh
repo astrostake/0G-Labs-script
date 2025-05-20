@@ -29,7 +29,7 @@ if [ -z "$local_height" ] || [ "$local_height" = "null" ]; then
 
   if [ -z "$local_height" ] || [ "$local_height" = "null" ]; then
     echo "❌ Still cannot connect to port $OG_RPC_PORT. Exiting..."
-    exit 1
+    return 1
   fi
 fi
 
