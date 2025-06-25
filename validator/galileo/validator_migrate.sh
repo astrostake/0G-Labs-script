@@ -67,24 +67,16 @@ NEW_OG_HOME_DIR="$HOME/.0gchaind/galileo"
 # Create the new base directory
 mkdir -p "$NEW_OG_HOME_DIR"
 
-# Download a clean version of the repo to get the correct file structure
-cd $HOME
-wget https://github.com/0glabs/0gchain-NG/releases/download/v1.2.0/galileo-v1.2.0.tar.gz -O temp_galileo.tar.gz
-tar -xzvf temp_galileo.tar.gz -C "$NEW_OG_HOME_DIR" --strip-components=1
-rm temp_galileo.tar.gz
-
 # Move old data to the new structure to avoid re-syncing
 echo "Moving old blockchain data..."
-mv "$HOME/.0gchaind/0g-home/geth-home" "$NEW_OG_HOME_DIR/0g-home/"
-mv "$HOME/.0gchaind/0g-home/0gchaind-home/data" "$NEW_OG_HOME_DIR/0g-home/0gchaind-home/"
+mv "$HOME/.0gchaind/0g-home/geth-home" "$NEW_OG_HOME_DIR/0g-home/geth-home"
+mv "$HOME/.0gchaind/0g-home/0gchaind-home/data" "$NEW_OG_HOME_DIR/0g-home/0gchaind-home/data"
 # Remove the rest of the old 0g-home directory
 rm -rf "$HOME/.0gchaind/0g-home"
 
 # Restore the critical keys to their new location
 echo "Restoring validator keys to their new location..."
-cp "$BACKUP_DIR/priv_validator_key.json" "$NEW_OG_HOME_DIR/0g-home/0gchaind-home/config/"
-cp "$BACKUP_DIR/node_key.json" "$NEW_OG_HOME_DIR/0g-home/0gchaind-home/config/"
-cp "$BACKUP_DIR/priv_validator_state.json" "$NEW_OG_HOME_DIR/0g-home/0gchaind-home/data/"
+cp "$BACKUP_DIR/" "$NEW_OG_HOME_DIR/0g-home/0gchaind-home/config/"
 
 echo "✅ Directory structure successfully migrated."
 
