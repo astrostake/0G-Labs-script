@@ -177,21 +177,9 @@ EOF
 
 echo "✅ Systemd service files successfully recreated."
 
-# 5. Reconfigure Firewall
-log_info "Step 5: Reconfiguring firewall..."
-(echo "y" | sudo ufw reset) > /dev/null 2>&1
-sudo ufw default deny incoming
-sudo ufw default allow outgoing
-sudo ufw allow ssh
-sudo ufw allow ${OG_PORT}303/tcp
-sudo ufw allow ${OG_PORT}303/udp
-sudo ufw allow ${OG_PORT}656/tcp
-(echo "y" | sudo ufw enable) > /dev/null 2>&1
-echo "✅ Firewall successfully reconfigured."
-
 
 # 6. Finalize and Restart
-log_info "Step 6: Finalizing and restarting all services..."
+log_info "Step 5: Finalizing and restarting all services..."
 sudo systemctl daemon-reload
 sudo systemctl enable 0gchaind
 sudo systemctl enable geth
