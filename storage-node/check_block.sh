@@ -77,26 +77,29 @@ while true; do
         block_diff=$((latestBlock - logSyncHeight))
         current_time=$(date +%s)
 
-        if [[ "$prev_block" =~ ^[0-9]+$ && "$prev_time" =~ ^[0-9]+$ ]]; then
-            delta_block=$((logSyncHeight - prev_block))
-            delta_time=$((current_time - prev_time))
+        # HANYA TAMPILKAN SPEED & ETA JIKA SELISIH BLOCK DIATAS ATAU SAMA DENGAN 10
+        if [ "$block_diff" -ge 10 ]; then
+            if [[ "$prev_block" =~ ^[0-9]+$ && "$prev_time" =~ ^[0-9]+$ ]]; then
+                delta_block=$((logSyncHeight - prev_block))
+                delta_time=$((current_time - prev_time))
 
-            if (( delta_time > 0 && delta_block >= 0 )); then
-                bps=$(echo "scale=2; $delta_block / $delta_time" | bc)
-                if (( block_diff > 0 && $(echo "$bps > 0" | bc -l) )); then
-                    eta_sec=$(echo "scale=0; $block_diff / $bps" | bc)
-                    if (( eta_sec < 60 )); then
-                        eta_display="$eta_sec sec"
-                    elif (( eta_sec < 3600 )); then
-                        eta_display="$((eta_sec / 60)) min"
-                    elif (( eta_sec < 86400 )); then
-                        eta_display="$((eta_sec / 3600)) hr"
+                if (( delta_time > 0 && delta_block >= 0 )); then
+                    bps=$(echo "scale=2; $delta_block / $delta_time" | bc)
+                    if (( $(echo "$bps > 0" | bc -l) )); then
+                        eta_sec=$(echo "scale=0; $block_diff / $bps" | bc)
+                        if (( eta_sec < 60 )); then
+                            eta_display="$eta_sec sec"
+                        elif (( eta_sec < 3600 )); then
+                            eta_display="$((eta_sec / 60)) min"
+                        elif (( eta_sec < 86400 )); then
+                            eta_display="$((eta_sec / 3600)) hr"
+                        else
+                            eta_display="$((eta_sec / 86400)) day(s)"
+                        fi
+                        extra_info="| Speed: ${bps} blocks/s | ETA: ${eta_display}"
                     else
-                        eta_display="$((eta_sec / 86400)) day(s)"
+                        extra_info="| Speed: 0 blocks/s | ETA: ∞"
                     fi
-                    extra_info="| Speed: ${bps} blocks/s | ETA: ${eta_display}"
-                else
-                    extra_info="| Speed: 0 blocks/s | ETA: ∞"
                 fi
             fi
         fi
@@ -104,13 +107,13 @@ while true; do
         prev_block=$logSyncHeight
         prev_time=$current_time
 
-        # Set warna berdasarkan selisih block
+        # Set color based on block difference
         if [ "$block_diff" -le 5 ]; then
-            diff_color="\\033[32m" # Hijau
+            diff_color="\\033[32m" # Green
         elif [ "$block_diff" -le 20 ]; then
-            diff_color="\\033[33m" # Kuning
+            diff_color="\\033[33m" # Yellow
         else
-            diff_color="\\033[31m" # Merah
+            diff_color="\\033[31m" # Red
         fi
 
         block_status="(\033[0m${diff_color}Behind $block_diff\033[0m)"
@@ -118,7 +121,7 @@ while true; do
         block_status=""
     fi
 
-    # Tampilkan status
+    # Show Status
     echo -e "Local Block: \033[32m$local_status\033[0m / Network Block: \033[33m$network_status\033[0m $block_status | Peers: \033[34m$connectedPeers\033[0m $extra_info"
     sleep 5
 done
