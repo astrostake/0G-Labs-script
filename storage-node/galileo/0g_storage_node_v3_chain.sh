@@ -77,7 +77,7 @@ echo ""
 # STEP 5
 echo -e "\033[1;33m[5/9] Downloading config file...\033[0m"
 rm -rf $HOME/0g-storage-node/run/config.toml
-curl -o $HOME/0g-storage-node/run/config.toml https://vault.astrostake.xyz/0g-labs/config-v3.toml
+curl -o $HOME/0g-storage-node/run/config.toml https://vault.astrostake.xyz/testnet/0g-labs/config-v3.toml
 echo ""
 
 # STEP 6
