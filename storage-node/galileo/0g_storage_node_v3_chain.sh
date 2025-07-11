@@ -66,7 +66,7 @@ cd $HOME
 rm -rf 0g-storage-node
 git clone https://github.com/0glabs/0g-storage-node.git > /dev/null
 cd 0g-storage-node
-git checkout v1.0.0 > /dev/null
+git checkout v1.1.0 > /dev/null
 git submodule update --init > /dev/null
 
 # Build step with output
