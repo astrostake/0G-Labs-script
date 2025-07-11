@@ -83,32 +83,6 @@ done
 sleep 1
 echo ""
 
-# Step 4.5: Recreate systemd service
-echo -e "\e[1;33m[4.5/6] Recreating zgs.service...\e[0m"
-sudo rm -f /etc/systemd/system/zgs.service
-
-sudo tee /etc/systemd/system/zgs.service > /dev/null <<EOF
-[Unit]
-Description=ZGS Node
-After=network.target
-
-[Service]
-User=$USER
-WorkingDirectory=$HOME/0g-storage-node/run
-ExecStart=$HOME/0g-storage-node/target/release/zgs_node --config $HOME/0g-storage-node/run/config.toml
-Restart=on-failure
-RestartSec=10
-LimitNOFILE=65535
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo systemctl daemon-reload
-sudo systemctl enable zgs > /dev/null 2>&1
-echo -e "\e[32m✅ zgs.service recreated successfully\e[0m"
-echo ""
-
 # Step 5: Restart the node
 echo -e "\e[1;33m[5/6] Restarting node...\e[0m"
 sudo systemctl restart zgs > /dev/null 2>&1
