@@ -65,7 +65,7 @@ echo ""
 echo -e "\e[1;33m[3/6] Cloning and building binary...\e[0m"
 cd $HOME/0g-storage-node > /dev/null 2>&1
 git fetch --all --tags > /dev/null 2>&1
-git checkout v1.0.0 > /dev/null 2>&1
+git checkout v1.1.0 > /dev/null 2>&1
 git submodule update --init > /dev/null 2>&1
 cargo build --release > /dev/null 2>&1 & spinner
 sleep 1
