@@ -129,7 +129,7 @@ while true; do
     local_status=$(get_sync_status $local_diff)
     network_status=$(get_sync_status $network_diff)
     
-    echo -e "${COLOR_GRAY}[$timestamp]${COLOR_RESET} ${COLOR_CYAN}LOCAL${COLOR_RESET}: Geth ${COLOR_GREEN}$(format_number $geth_height)${COLOR_RESET} | 0gchaind ${COLOR_BLUE}$(format_number $og_height)${COLOR_RESET} ${local_status} ${COLOR_GRAY}(${peers_count}p, diff:${local_diff})${COLOR_RESET} || ${COLOR_MAGENTA}NETWORK${COLOR_RESET}: $(format_number $public_height) ${network_status} ${COLOR_RED}(behind:$(format_number $network_diff))${COLOR_RESET} $speed_display $eta_display"
+    echo -e "${COLOR_GRAY}[$timestamp]${COLOR_RESET} ${COLOR_CYAN}LOCAL${COLOR_RESET}: Geth ${COLOR_GREEN}$(format_number $geth_height)${COLOR_RESET} | 0gchaind ${COLOR_BLUE}$(format_number $og_height)${COLOR_RESET} ${local_status} ${COLOR_GRAY}(diff:${local_diff})${COLOR_RESET} | ${peers_count} peers || ${COLOR_MAGENTA}NETWORK${COLOR_RESET}: $(format_number $public_height) ${network_status} ${COLOR_RED}(behind:$(format_number $network_diff))${COLOR_RESET} $speed_display $eta_display"
 
     sleep 5
 done
