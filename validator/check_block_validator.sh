@@ -1,85 +1,135 @@
 #!/bin/bash
 
-# Path JSON
-get_block_height() {
-  curl -s "http://localhost:$1/status" | jq -r '.result.sync_info.latest_block_height // empty'
+# ============================================
+# Color Definitions
+# ============================================
+COLOR_GREEN='\033[1;32m'
+COLOR_BLUE='\033[1;34m'
+COLOR_YELLOW='\033[1;33m'
+COLOR_RED='\033[1;31m'
+COLOR_MAGENTA='\033[1;35m'
+COLOR_CYAN='\033[1;36m'
+COLOR_WHITE='\033[1;37m'
+COLOR_GRAY='\033[0;37m'
+COLOR_RESET='\033[0m'
+
+# ============================================
+# Helper Functions
+# ============================================
+
+# Format number with commas for better readability
+format_number() {
+    printf "%'d" "$1" 2>/dev/null || echo "$1"
 }
 
-# Step 1: Try 26657
-OG_RPC_PORT=26657
-local_height=$(get_block_height $OG_RPC_PORT)
+# Format sync status with colors and indicators
+get_sync_status() {
+    local diff=$1
+    if [ $diff -le 2 ]; then
+        echo -e "${COLOR_GREEN}[SYNCED]${COLOR_RESET}"
+    elif [ $diff -le 10 ]; then
+        echo -e "${COLOR_YELLOW}[SYNCING]${COLOR_RESET}"
+    else
+        echo -e "${COLOR_RED}[BEHIND]${COLOR_RESET}"
+    fi
+}
 
-# Step 2: Fallback to ${OG_PORT}657
-if [ -z "$local_height" ] || [ "$local_height" = "null" ]; then
-  echo "⚠️  Port 26657 not responding."
-
-  if [ -n "$OG_PORT" ]; then
-    fallback_port="${OG_PORT}657"
-    echo "⏪ Trying fallback port: $fallback_port"
-    OG_RPC_PORT=$fallback_port
-    local_height=$(get_block_height $OG_RPC_PORT)
-  fi
+# ============================================
+# Port Configuration & Detection
+# ============================================
+OG_CHAIN_RPC_PORT=26657
+if ! curl -s "http://localhost:$OG_CHAIN_RPC_PORT/status" > /dev/null; then
+    if [ -n "$OG_PORT" ]; then
+        OG_CHAIN_RPC_PORT="${OG_PORT}657"
+    else
+        read -p "0gchaind port not detected. Please enter the 0gchaind RPC port: " OG_CHAIN_RPC_PORT
+    fi
 fi
 
-# Step 3: If it still fails, ask for manual input
-if [ -z "$local_height" ] || [ "$local_height" = "null" ]; then
-  read -p "❓ Unable to detect port. Please enter the RPC port manually: " manual_port
-  OG_RPC_PORT=$manual_port
-  local_height=$(get_block_height $OG_RPC_PORT)
-
-  if [ -z "$local_height" ] || [ "$local_height" = "null" ]; then
-    echo "❌ Still cannot connect to port $OG_RPC_PORT. Exiting..."
-    return 1
-  fi
+GETH_RPC_PORT=8545
+if ! curl -s -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' "http://localhost:$GETH_RPC_PORT" > /dev/null; then
+    if [ -n "$OG_PORT" ]; then
+        GETH_RPC_PORT="${OG_PORT}545"
+    else
+        read -p "Geth port not detected. Please enter the Geth RPC port: " GETH_RPC_PORT
+    fi
 fi
 
-# Monitoring loop
-prev_local_height=$local_height
+PUBLIC_RPC_URL="https://evmrpc-testnet.0g.ai"
+
+# Show configuration
+echo -e "${COLOR_CYAN}=== 0G Chain Sync Monitor ===${COLOR_RESET}"
+echo -e "${COLOR_WHITE}Configuration:${COLOR_RESET} 0gchaind Port: ${COLOR_GREEN}$OG_CHAIN_RPC_PORT${COLOR_RESET} | Geth Port: ${COLOR_GREEN}$GETH_RPC_PORT${COLOR_RESET}"
+echo -e "${COLOR_WHITE}Public RPC:${COLOR_RESET} $PUBLIC_RPC_URL"
+echo -e "${COLOR_GRAY}$(printf '=%.0s' {1..80})${COLOR_RESET}"
+
+# ============================================
+# Initialization for ETA Calculation
+# ============================================
+prev_geth_height=0
 prev_time=$(date +%s)
 first_run=true
 
+# ============================================
+# Monitoring Loop
+# ============================================
 while true; do
-  status_json=$(curl -s "http://localhost:$OG_RPC_PORT/status")
-  local_height=$(echo "$status_json" | jq -r '.result.sync_info.latest_block_height // empty')
-  catching_up=$(echo "$status_json" | jq -r '.result.sync_info.catching_up // empty')
-  peers_count=$(curl -s "http://localhost:$OG_RPC_PORT/net_info" | jq '.result.peers | length')
+    # 1. Fetch data from local 0gchaind (CL)
+    og_status_json=$(curl -s "http://localhost:$OG_CHAIN_RPC_PORT/status")
+    og_height=$(echo "$og_status_json" | jq -r '.result.sync_info.latest_block_height // "Error"')
+    peers_count=$(curl -s "http://localhost:$OG_CHAIN_RPC_PORT/net_info" | jq -r '.result.n_peers // "0"')
 
-  response=$(curl -s -X POST https://evmrpc-testnet.0g.ai \
-    -H "Content-Type: application/json" \
-    --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}')
-  hex_height=$(echo "$response" | jq -r '.result')
-  network_height=$((hex_height))
-  blocks_left=$((network_height - local_height))
+    # 2. Fetch data from local Geth (EL)
+    geth_response=$(curl -s -X POST "http://localhost:$GETH_RPC_PORT" -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}')
+    geth_height=$(( $(echo "$geth_response" | jq -r '.result // "0x0"') ))
 
-  current_time=$(date +%s)
+    # 3. Fetch data from the Public 0G RPC
+    public_response=$(curl -s -X POST "$PUBLIC_RPC_URL" -H "Content-Type: application/json" --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}')
+    public_height=$(( $(echo "$public_response" | jq -r '.result // "0x0"') ))
 
-  if [ "$first_run" = true ]; then
-    speed="--"
+    if [ "$og_height" = "Error" ] || [ "$geth_height" -eq 0 ]; then
+        echo -e "${COLOR_RED}[$(date '+%H:%M:%S')] Failed to fetch local data. Check if nodes are running and ports are correct.${COLOR_RESET}"
+        sleep 10
+        continue
+    fi
+
+    # 4. Calculate differences, speed, and ETA
+    local_diff=$((geth_height - og_height))
+    network_diff=$((public_height - geth_height))
+    current_time=$(date +%s)
     eta_display=""
-    first_run=false
-  else
-    time_diff=$((current_time - prev_time))
-    height_diff=$((local_height - prev_local_height))
+    speed_display=""
 
-    if [ $time_diff -gt 0 ]; then
-      speed=$(echo "scale=2; $height_diff / $time_diff" | bc)
+    if [ "$first_run" = true ]; then
+        first_run=false
     else
-      speed=0
+        time_diff=$((current_time - prev_time))
+        height_diff=$((geth_height - prev_geth_height))
+
+        if [ $time_diff -gt 0 ] && [ $height_diff -gt 0 ] && [ $network_diff -gt 0 ]; then
+            speed=$(echo "scale=2; $height_diff / $time_diff" | bc 2>/dev/null || echo "0")
+            if (( $(echo "$speed > 0" | bc -l) )); then
+                speed_display="${COLOR_GRAY}(${speed} bl/s)${COLOR_RESET}"
+                eta_seconds=$(echo "$network_diff / $speed" | bc 2>/dev/null || echo 0)
+                eta_seconds=${eta_seconds%.*}
+                if [ $eta_seconds -gt 0 ]; then
+                    eta_formatted=$(printf '%02dh:%02dm:%02ds' $((eta_seconds/3600)) $((eta_seconds%3600/60)) $((eta_seconds%60)))
+                    eta_display="| ${COLOR_YELLOW}ETA: ${eta_formatted}${COLOR_RESET}"
+                fi
+            fi
+        fi
     fi
+    
+    # Save current state for the next loop's calculation
+    prev_geth_height=$geth_height
+    prev_time=$current_time
+    
+    # 5. Display information in a clean single line format
+    timestamp=$(date '+%H:%M:%S')
+    local_status=$(get_sync_status $local_diff)
+    network_status=$(get_sync_status $network_diff)
+    
+    echo -e "${COLOR_GRAY}[$timestamp]${COLOR_RESET} ${COLOR_CYAN}LOCAL${COLOR_RESET}: Geth ${COLOR_GREEN}$(format_number $geth_height)${COLOR_RESET} | 0gchaind ${COLOR_BLUE}$(format_number $og_height)${COLOR_RESET} ${local_status} ${COLOR_GRAY}(${peers_count}p, diff:${local_diff})${COLOR_RESET} || ${COLOR_MAGENTA}NETWORK${COLOR_RESET}: $(format_number $public_height) ${network_status} ${COLOR_RED}(behind:$(format_number $network_diff))${COLOR_RESET} $speed_display $eta_display"
 
-    if [ "$catching_up" = "true" ] && (( $(echo "$speed > 0" | bc -l) )); then
-      eta_seconds=$(echo "$blocks_left / $speed" | bc)
-      eta_formatted=$(printf '%02dh:%02dm:%02ds' $((eta_seconds/3600)) $((eta_seconds%3600/60)) $((eta_seconds%60)))
-      eta_display="| \033[1;33mETA:\033[0m $eta_formatted"
-    else
-      eta_display=""
-    fi
-  fi
-
-  echo -e "\033[1;38mYour node height:\033[0m \033[1;34m$local_height\033[0m | \033[1;35mNetwork height:\033[0m \033[1;36m$network_height\033[0m | \033[1;32mPeers:\033[0m $peers_count | \033[1;29mBlocks left:\033[0m \033[1;31m$blocks_left\033[0m | \033[1;32mSpeed:\033[0m ${speed} blk/s $eta_display"
-
-  prev_local_height=$local_height
-  prev_time=$current_time
-
-  sleep 5
+    sleep 5
 done
