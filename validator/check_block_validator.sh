@@ -58,7 +58,10 @@ fi
 PUBLIC_RPC_URL="https://evmrpc-testnet.0g.ai"
 
 # Show configuration
-echo -e "${COLOR_CYAN}=== 0G Chain Sync Monitor ===${COLOR_RESET}"
+echo -e "${COLOR_CYAN}==================================${COLOR_RESET}"
+echo -e "${COLOR_CYAN}       0G Sync Monitor${COLOR_RESET}"
+echo -e "${COLOR_GRAY}    Powered by${COLOR_RESET} ${COLOR_MAGENTA}AstroStake 🚀${COLOR_RESET}"
+echo -e "${COLOR_CYAN}==================================${COLOR_RESET}"
 echo -e "${COLOR_WHITE}Configuration:${COLOR_RESET} 0gchaind Port: ${COLOR_GREEN}$OG_CHAIN_RPC_PORT${COLOR_RESET} | Geth Port: ${COLOR_GREEN}$GETH_RPC_PORT${COLOR_RESET}"
 echo -e "${COLOR_WHITE}Public RPC:${COLOR_RESET} $PUBLIC_RPC_URL"
 echo -e "${COLOR_GRAY}$(printf '=%.0s' {1..80})${COLOR_RESET}"
