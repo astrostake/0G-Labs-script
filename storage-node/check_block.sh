@@ -1,8 +1,8 @@
 #!/bin/bash
 
 echo ""
-echo "🛰️  AstroStake Block Scanner | Support by Maouam's Node Lab Team"
-echo "================================================================"
+echo "🛰️  AstroStake Block Checker"
+echo "==============================="
 echo ""
 
 # Detect RPC from Systemd Service
