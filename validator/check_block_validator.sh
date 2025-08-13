@@ -35,24 +35,37 @@ get_sync_status() {
 }
 
 # ============================================
-# Port Configuration & Detection
+# Load Environment Variables
 # ============================================
-OG_CHAIN_RPC_PORT=26657
-if ! curl -s "http://localhost:$OG_CHAIN_RPC_PORT/status" > /dev/null; then
-    if [ -n "$OG_PORT" ]; then
-        OG_CHAIN_RPC_PORT="${OG_PORT}657"
-    else
-        read -p "0gchaind port not detected. Please enter the 0gchaind RPC port: " OG_CHAIN_RPC_PORT
-    fi
+if [ -f "$HOME/.bash_profile" ]; then
+    source "$HOME/.bash_profile"
+fi
+if [ -f "$HOME/.bashrc" ]; then
+    source "$HOME/.bashrc"
 fi
 
-GETH_RPC_PORT=8545
-if ! curl -s -X POST --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' "http://localhost:$GETH_RPC_PORT" > /dev/null; then
-    if [ -n "$OG_PORT" ]; then
-        GETH_RPC_PORT="${OG_PORT}545"
-    else
-        read -p "Geth port not detected. Please enter the Geth RPC port: " GETH_RPC_PORT
-    fi
+# ============================================
+# Port Configuration & Detection (Prioritize Custom Port)
+# ============================================
+
+# --- OG Chain RPC ---
+if [ -n "$OG_PORT" ]; then
+    OG_CHAIN_RPC_PORT="${OG_PORT}657"
+elif curl -s "http://localhost:26657/status" > /dev/null; then
+    OG_CHAIN_RPC_PORT=26657
+else
+    read -p "0gchaind port not detected. Please enter the 0gchaind RPC port: " OG_CHAIN_RPC_PORT
+fi
+
+# --- Geth RPC ---
+if [ -n "$OG_PORT" ]; then
+    GETH_RPC_PORT="${OG_PORT}545"
+elif curl -s -X POST \
+  --data '{"jsonrpc":"2.0","method":"eth_blockNumber","params":[],"id":1}' \
+  "http://localhost:8545" > /dev/null; then
+    GETH_RPC_PORT=8545
+else
+    read -p "Geth port not detected. Please enter the Geth RPC port: " GETH_RPC_PORT
 fi
 
 PUBLIC_RPC_URL="https://evmrpc-testnet.0g.ai"
